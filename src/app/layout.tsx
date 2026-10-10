@@ -6,7 +6,11 @@ export const metadata: Metadata = {
   description: "Local control panel for the Job Search Agent",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
       <body>{children}</body>
