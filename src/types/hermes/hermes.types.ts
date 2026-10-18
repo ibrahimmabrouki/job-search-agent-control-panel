@@ -1,179 +1,91 @@
-// This file is responsible for defining a single trusted place
-// where the backend reads and validates application configuration.
-//
-// For now, the control panel backend needs to know things like:
-// - Where the Hermes server is running
-// - Which secret token should be used when calling protected Hermes APIs
-//
-// These values may change depending on the environment.
-//
-// Example:
-//
-// Local development:
-// HERMES_BASE_URL=http://127.0.0.1:9119
-//
-// Docker:
-// HERMES_BASE_URL=http://gateway:9119
-//
-// Sensitive values such as HERMES_DASHBOARD_SESSION_TOKEN
-// should NOT be hardcoded in source code.
+// This creates a custom type called: HermesGatewayState
+// and says the value is only allowed to be one of these exact strings.
 
-type ServerEnv = {
-  hermes: {
-    baseUrl: string;
-    sessionToken: string;
+// const state: HermesGatewayState = "running"; is valid
+// but
+// const state: HermesGatewayState = "hello"; is invalid and will throw a TypeScript error.
+
+export type HermesGatewayState =
+  | "running"
+  | "stopped"
+  | "starting"
+  | "stopping"
+  | "unknown";
+
+// This creates a custom type called: HermesOverallStatus
+// and says the value is only allowed to be one of these exact strings.
+
+// ok ==> everything healthy
+// degraded ==> Hermes works, but something has a problem
+// For example: because WhatsApp was disconnected even though the Gateway itself was working.
+
+// error ==> serious problem
+// unknown ==> state cannot be determined
+export type HermesOverallStatus = "ok" | "degraded" | "error" | "unknown";
+
+// This defines a reusable shape for individual Hermes components.
+// These components are: gateway, dashboard, storage, and platforms.
+
+// From the real response we saw things like:
+// "gateway": { "status": "ok", "state": "running" }
+// "dashboard": { "status": "ok", "recent_unhandled_errors": 0, "last_error_at": null, "selftest": "ok" }
+
+// The common field that we care about is: status: string;
+// The optional field is state?: string; because not all components have a state field in the response.
+// So, { status: "ok" } and { status: "ok", state: "running" } are both valid shapes for this type.
+export type HermesComponentStatus = {
+  status: string;
+  state?: string;
+};
+
+// This is the main response type for the Hermes status API
+// This represents teh object returned by GET /api/status endpoint
+// Now each property inside corresponds to something Hermes actually returned
+export type HermesStatus = {
+  version: string;
+  // "version": "0.21.4" determines the version of Hermes in charge of the gateway
+
+  gateway_running: boolean;
+  // This value indicates whether the Hermes gateway is currently running or not.
+  gateway_state: HermesGatewayState;
+  // gateway_state: HermesGatewayState; instead of just a string, we reuse the custom type we defined earlier.
+  // This means later the UI can do: if (status.gateway_state === "running") { ... }
+
+  // Later the dashboard might display:
+  // Active agents: 0
+  // Active sessions: 0
+  active_agents: number;
+  active_sessions: number;
+
+  // gateway_busy tells us whether the Gateway is currently occupied with work.
+  gateway_busy: boolean;
+  // gateway_drainable indicates whether Hermes considers it possible to gracefully drain/prepare the Gateway for restart or shutdown behavior.
+  gateway_drainable: boolean;
+
+  overall: HermesOverallStatus;
+
+  //   real JSON included:
+  //     "components": {
+  //     "gateway": {...},
+  //     "dashboard": {...},
+  //     "storage": {...},
+  //     "platforms": {...}
+  //     } So we create the same nested structure in TypeScript.
+  // Each one uses: HermesComponentStatus so we do not repeat the same definition four times.
+  components: {
+    gateway: HermesComponentStatus;
+    dashboard: HermesComponentStatus;
+    storage: HermesComponentStatus;
+    platforms: HermesComponentStatus;
   };
+
+  profiles: string[];
+
+  gateway_mode: string;
+
+  hermes_home: string;
+  config_path: string;
+  env_path: string;
+
+  gateway_pid: number | null;
 };
-
-// This helper reads a required environment variable.
-//
-// If the variable does not exist, is empty, or only contains spaces,
-// the application throws a clear error immediately.
-//
-// This is better than allowing the application to continue running
-// and later fail with a confusing error such as:
-//
-// 401 Unauthorized
-//
-// Example:
-//
-// getRequiredEnv("HERMES_DASHBOARD_SESSION_TOKEN")
-//
-const getRequiredEnv = (name: string): string => {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-
-  return value;
-};
-
-// This helper reads an optional environment variable.
-//
-// If the environment variable exists, we use its value.
-// If it does not exist, we use the fallback value.
-//
-// Example:
-//
-// HERMES_BASE_URL exists:
-// → use HERMES_BASE_URL
-//
-// HERMES_BASE_URL does not exist:
-// → use http://127.0.0.1:9119
-//
-const getOptionalEnv = (name: string, fallback: string): string => {
-  const value = process.env[name]?.trim();
-
-  return value || fallback;
-};
-
-// This function loads and validates the server configuration.
-//
-// We use a function instead of reading all environment variables
-// immediately when this file is imported.
-//
-// This gives us explicit control over when configuration validation happens.
-//
-// Later, the Hermes client will do something like:
-//
-// const env = loadServerEnv();
-//
-// env.hermes.baseUrl
-// env.hermes.sessionToken
-//
-// instead of directly using:
-//
-// process.env.HERMES_BASE_URL
-// process.env.HERMES_DASHBOARD_SESSION_TOKEN
-//
-export const loadServerEnv = (): ServerEnv => {
-  return {
-    hermes: {
-      // The Hermes base URL.
-      //
-      // During local development Hermes may be available at:
-      //
-      // http://127.0.0.1:9119
-      //
-      // Later, inside Docker Compose, the control panel container
-      // will communicate with the Hermes container through
-      // the Docker service name:
-      //
-      // http://gateway:9119
-      //
-      // Docker will therefore provide something like:
-      //
-      // HERMES_BASE_URL=http://gateway:9119
-      //
-      // The .replace(/\/+$/, "") removes trailing slashes.
-      //
-      // Example:
-      //
-      // http://gateway:9119/
-      //
-      // becomes:
-      //
-      // http://gateway:9119
-      //
-      // This makes it safe to later create URLs like:
-      //
-      // `${baseUrl}/api/status`
-      //
-      // without accidentally producing:
-      //
-      // http://gateway:9119//api/status
-      //
-      baseUrl: getOptionalEnv(
-        "HERMES_BASE_URL",
-        "http://127.0.0.1:9119",
-      ).replace(/\/+$/, ""),
-
-      // This is the secret token our backend sends to protected
-      // Hermes API endpoints.
-      //
-      // Hermes expects it in this HTTP header:
-      //
-      // X-Hermes-Session-Token: <secret>
-      //
-      // Later, HermesClient will use it approximately like:
-      //
-      // headers: {
-      //   "X-Hermes-Session-Token": env.hermes.sessionToken
-      // }
-      //
-      // There is intentionally NO default value for this token.
-      //
-      // Secrets should always be explicitly configured.
-      sessionToken: getRequiredEnv("HERMES_DASHBOARD_SESSION_TOKEN"),
-    },
-  };
-};
-
-/*
-Architecture:
-
-Environment / Docker configuration
-            │
-            ↓
-          env.ts
-            │
-            ↓
-      HermesClient
-            │
-    ┌───────┼─────────┐
-    ↓       ↓         ↓
-  Status   Codex   WhatsApp
-                    │
-                 Scheduler
-                    │
-                   Agent
-
-Responsibility of this file:
-
-1. Read environment variables
-2. Validate required values
-3. Provide sensible defaults where appropriate
-4. Keep configuration logic in one place
-5. Prevent process.env usage from being scattered across the backend
-*/
