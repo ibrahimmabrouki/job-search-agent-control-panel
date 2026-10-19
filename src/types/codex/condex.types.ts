@@ -65,14 +65,17 @@ export type CodexLoginStartResponse = {
 // After starting login, our backend periodically asks Hermes:
 //
 // "Has this OAuth session completed yet?"
-//
-// We know that Hermes can report at least a pending state.
-//
-// We keep this as `string` for now because we have not yet verified
-// the complete set of statuses Hermes may return.
 
 export type CodexLoginPollResponse = {
+  session_id: string;
   status: string;
+  error_message: string | null;
+  expires_at: number;
+  reason: string | null;
+  account_email: string | null;
+  model: string | null;
+  retryable: boolean | null;
+  retry_after: number | null;
 };
 
 // -----------------------------------------------------------------------------
