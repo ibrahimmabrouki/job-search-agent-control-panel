@@ -7,6 +7,7 @@ import type {
   CodexStatus,
   CodexLoginStartResponse,
   CodexLoginPollResponse,
+  CodexLoginCancelResponse,
 } from "@/types/codex/condex.types";
 
 type HermesOAuthProvidersResponse = {
@@ -59,6 +60,18 @@ export class CodexService {
 
     return hermesClient.get<CodexLoginPollResponse>(
       HERMES_ENDPOINTS.CODEX.POLL_LOGIN(sessionId),
+    );
+  }
+
+  // When a Codex device login session started
+  // If the user changes their mind and wants to cancel and close the flow
+  // This method is used to tell the Hermes serve backend to cancel this temporary OAuth session.
+  // The sessionId is used to identfy which specific login attempt we are cancelling.
+  public async cancelLogin(sessionId: string): Promise<CodexLoginCancelResponse> {
+    const hermesClient = createHermesClient();
+
+    return hermesClient.delete<CodexLoginCancelResponse>(
+      HERMES_ENDPOINTS.CODEX.CANCEL_LOGIN(sessionId),
     );
   }
 }

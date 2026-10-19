@@ -93,3 +93,8 @@ export type CodexStatus = {
   provider: "openai-codex";
   source?: string | null;
 };
+
+export type CodexLoginCancelResponse = {
+  ok: boolean;
+  session_id: string;
+};
