@@ -8,6 +8,7 @@ import type {
   CodexLoginStartResponse,
   CodexLoginPollResponse,
   CodexLoginCancelResponse,
+  CodexDisconnectResponse,
 } from "@/types/codex/condex.types";
 
 type HermesOAuthProvidersResponse = {
@@ -67,11 +68,25 @@ export class CodexService {
   // If the user changes their mind and wants to cancel and close the flow
   // This method is used to tell the Hermes serve backend to cancel this temporary OAuth session.
   // The sessionId is used to identfy which specific login attempt we are cancelling.
-  public async cancelLogin(sessionId: string): Promise<CodexLoginCancelResponse> {
+  public async cancelLogin(
+    sessionId: string,
+  ): Promise<CodexLoginCancelResponse> {
     const hermesClient = createHermesClient();
 
     return hermesClient.delete<CodexLoginCancelResponse>(
       HERMES_ENDPOINTS.CODEX.CANCEL_LOGIN(sessionId),
+    );
+  }
+
+  // Now we need to build the Codex diconnect endpoint. This is used to disconnect the OpenAI Codex provider from the user's account
+  // Cancel login → stops one temporary OAuth login attempt
+  // Disconnect Codex → removes the currently connected OpenAI/Codex authentication from Hermes
+  // Why there is no sessionId here: we are not cancelling one temporary login attempt. We are disconnecting the actual openai-codex provider itself.
+  public async disconnect(): Promise<CodexDisconnectResponse> {
+    const hermesClient = createHermesClient();
+
+    return hermesClient.delete<CodexDisconnectResponse>(
+      HERMES_ENDPOINTS.CODEX.DISCONNECT,
     );
   }
 }

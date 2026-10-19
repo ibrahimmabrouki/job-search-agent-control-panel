@@ -6,6 +6,7 @@ import type {
   CodexLoginStartResponse,
   CodexLoginPollResponse,
   CodexLoginCancelResponse,
+  CodexDisconnectResponse,
 } from "@/types/codex/condex.types";
 
 // Controller for Codex-related API operations.
@@ -42,4 +43,11 @@ export const cancelCodexLogin = async (
   const codexService = createCodexService();
 
   return codexService.cancelLogin(sessionId);
+};
+
+// This is the controller that instantiates the CodexService and uses the disconnect() method to disconnect the OpenAI Codex provider.
+export const disconnectCodex = async (): Promise<CodexDisconnectResponse> => {
+  const codexService = createCodexService();
+
+  return codexService.disconnect();
 };

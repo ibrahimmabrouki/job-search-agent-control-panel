@@ -98,3 +98,8 @@ export type CodexLoginCancelResponse = {
   ok: boolean;
   session_id: string;
 };
+
+export type CodexDisconnectResponse = {
+  ok: boolean;
+  provider: "openai-codex";
+};
