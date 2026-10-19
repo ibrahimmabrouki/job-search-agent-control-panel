@@ -37,6 +37,28 @@ export type HermesComponentStatus = {
   status: string;
   state?: string;
 };
+// Since we are using HermesStatus as the main structured response type for the Hermes status API
+// And Hermes itself returns a nested struture with components and platforms
+// Inside the response we have Hermes gate_wayplatforms which ara included in the response
+// "gateway_platforms": {
+//   "api_server": { ... },
+//   "whatsapp": { ... }
+// }
+//  to provide information about the status of the platforms that are connected to Hermes
+// Note: Hermes calls them platforms because the Gatewat can communicate through different external channels/platforms 
+// for example: WhatsApp, Telegram, etc. and each platform has its own status information
+// Hermes Gateway
+// ├── API Server
+// └── WhatsApp
+// So HermesPlatformStatus is just our TypeScript name for the common structure Hermes uses for one of those platforms: It does not mean our frontend will use /api/status directly.
+export type HermesPlatformStatus = {
+  state: string;
+  error_code: string | null;
+  error_message: string | null;
+  updated_at: string;
+  needs_attention: boolean;
+  retrying_since: string | null;
+};
 
 // This is the main response type for the Hermes status API
 // This represents teh object returned by GET /api/status endpoint
@@ -77,6 +99,11 @@ export type HermesStatus = {
     dashboard: HermesComponentStatus;
     storage: HermesComponentStatus;
     platforms: HermesComponentStatus;
+  };
+
+  gateway_platforms: {
+    whatsapp: HermesPlatformStatus;
+    api_server: HermesPlatformStatus;
   };
 
   profiles: string[];
