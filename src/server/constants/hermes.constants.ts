@@ -25,6 +25,21 @@ export const HERMES_HEADERS = {
 // Feature one: Which is the satus endpoint
 export const HERMES_ENDPOINTS = {
   STATUS: "/api/status",
+
+  CODEX: {
+    PROVIDERS: "/api/providers/oauth",
+
+    START_LOGIN: "/api/providers/oauth/openai-codex/start",
+
+    // This is a function that produces a dynamic URL based on the sessionId parameter.
+    POLL_LOGIN: (sessionId: string) =>
+      `/api/providers/oauth/openai-codex/poll/${sessionId}`,
+
+    CANCEL_LOGIN: (sessionId: string) =>
+      `/api/providers/oauth/sessions/${sessionId}`,
+
+    DISCONNECT: "/api/providers/oauth/openai-codex",
+  },
 } as const;
 
 // Instead of hardcoding it: fetch(`${baseUrl}/api/status`)
