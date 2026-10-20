@@ -8,6 +8,8 @@ import type {
   WhatsAppStatus,
   WhatsAppConnectResponse,
   WhatsAppApplyResponse,
+  WhatsAppPollResponse,
+  WhatsAppCancelResponse,
 } from "@/types/whatsapp/whatsapp.types";
 
 export class WhatsAppService {
@@ -134,6 +136,50 @@ export class WhatsAppService {
         mode: "self-chat",
         allowed_users: "",
       },
+    );
+  }
+
+  // This is the poll sevice below that will be used one temporary WhatsApp pairing session attempt
+  // Since the connection process can take time when the user presses Connect WhatsApp, Hermes starts a temporary pairing session and gives us a pairingId
+  // At that moment, the connection may still be waitinh for the user to scan a QR code or complete some other actions in WhatsApp. So we need to poll Hermes to check if the pairing session has completed or not.
+
+  // User clicks "Connect WhatsApp"
+  // ==> /connect returns pairingId + QR
+  // ==> UI shows QR
+
+  // While user has not scanned it yet:
+  // ==> /poll/{pairingId}
+  // ==> maybe says "waiting" / "pending"
+
+  // User scans QR:
+  // ==> /poll/{pairingId}
+  // ==> eventually says "connected"
+
+  // Then:
+  // ==> /apply/{pairingId}
+  // ==> activates the pairing in Hermes
+
+  // Finally:
+  // ==> /status
+  // ==> confirms the running Gateway is actually using WhatsApp
+
+  public async pollConnection(
+    pairingId: string,
+  ): Promise<WhatsAppPollResponse> {
+    // pairingId identifies the exact temporary WhatsApp pairing session we want to inspect.
+    const hermesClient = createHermesClient();
+
+    return hermesClient.get<WhatsAppPollResponse>(
+      HERMES_ENDPOINTS.WHATSAPP.POLL_ONBOARDING(pairingId),
+    );
+  }
+
+  // This service will be used if the user wants to cancel a temporary WhatsApp pairing session. This is the case if the user started a pairing session but then changed their mind and wants to cancel it. The pairingId identifies the exact temporary WhatsApp pairing session we want to cancel.
+  public async cancelConnection(pairingId: string): Promise<WhatsAppCancelResponse> {
+    const hermesClient = createHermesClient();
+
+    return hermesClient.delete<WhatsAppCancelResponse>(
+      HERMES_ENDPOINTS.WHATSAPP.CANCEL_ONBOARDING(pairingId),
     );
   }
 }

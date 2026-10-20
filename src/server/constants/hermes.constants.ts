@@ -46,6 +46,12 @@ export const HERMES_ENDPOINTS = {
 
     APPLY_ONBOARDING: (pairingId: string) =>
       `/api/messaging/whatsapp/onboarding/${pairingId}/apply`,
+
+    POLL_ONBOARDING: (pairingId: string) =>
+      `/api/messaging/whatsapp/onboarding/${pairingId}`,
+
+    CANCEL_ONBOARDING: (pairingId: string) =>
+      `/api/messaging/whatsapp/onboarding/${pairingId}`,
   },
 } as const;
 

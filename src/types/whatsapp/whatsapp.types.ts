@@ -85,3 +85,20 @@ export type WhatsAppApplyResponse = {
 // - restart_started → whether Hermes already started that restart itself
 // - restart_action → the restart action Hermes triggered, such as "gateway-restart"
 // - restart_pid → process ID related to the restart, if available
+
+export type WhatsAppPollResponse = {
+  pairing_id: string;
+  status: string;
+  qr_payload: string | null;
+  expires_at: string;
+  mode: string;
+  allowed_users: string;
+  account_id: string | null;
+  account_name: string | null;
+  account_phone: string | null;
+  error: string | null;
+};
+
+export type WhatsAppCancelResponse = {
+  ok: boolean;
+};
