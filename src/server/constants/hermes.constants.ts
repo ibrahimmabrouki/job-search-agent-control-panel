@@ -40,6 +40,13 @@ export const HERMES_ENDPOINTS = {
 
     DISCONNECT: "/api/providers/oauth/openai-codex",
   },
+
+  WHATSAPP: {
+    START_ONBOARDING: "/api/messaging/whatsapp/onboarding/start",
+
+    APPLY_ONBOARDING: (pairingId: string) =>
+      `/api/messaging/whatsapp/onboarding/${pairingId}/apply`,
+  },
 } as const;
 
 // Instead of hardcoding it: fetch(`${baseUrl}/api/status`)
