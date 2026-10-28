@@ -76,6 +76,14 @@ export type WhatsAppApplyResponse = {
   restart_started: boolean;
   restart_action: string | null;
   restart_pid: number | null;
+
+  // Manager verifies the live connection after applying.
+  gateway_ready: boolean;
+  whatsapp_connected: boolean;
+
+  // Manager automatically configures the self-chat destination.
+  home_channel: string | null;
+  home_channel_configured: boolean;
 };
 
 // What the fields mean:

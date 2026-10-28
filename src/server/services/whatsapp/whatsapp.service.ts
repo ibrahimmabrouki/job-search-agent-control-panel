@@ -1,7 +1,13 @@
 import "server-only";
 
+// These are the imports that are needed when we want to communicate with Hermes server
 import { createHermesClient } from "@/server/clients/hermes/hermes.client";
 import { HERMES_ENDPOINTS } from "@/server/constants/hermes.constants";
+
+// These are the imports that are needed when we want to communicate with Manager server
+// The service will be connect -reconnect-, poll, and apply
+import { createManagerClient } from "@/server/clients/manager/manager.client";
+import { MANAGER_ENDPOINTS } from "@/server/constants/manager.constants";
 
 import type { HermesStatus } from "@/types/hermes/hermes.types";
 import type {
@@ -14,21 +20,13 @@ import type {
 
 export class WhatsAppService {
   public async getStatus(): Promise<WhatsAppStatus> {
+    const hermesClient = createHermesClient();
+
     // This service is responsible for the application-level
     // "WhatsApp status" feature.
-    //We already know where Hermes exposes the raw data:
-    // GET /api/status → gateway_platforms.whatsapp
+    // We already know where Hermes exposes the raw data: GET /api/status → gateway_platforms.whatsapp
     // Our service will read that raw Hermes structure and convert it into the cleaner response our frontend wants.
-    // Hermes /api/status
-    // ↓
-    // get whole Hermes status
-    // ↓
-    // take gateway_platforms.whatsapp
-    // ↓
-    // convert raw Hermes field names
-    // ↓
-    // return clean WhatsAppStatus
-    const hermesClient = createHermesClient();
+    // Hermes /api/status ==> get whole Hermes status ==> take gateway_platforms.whatsapp ==> convert raw Hermes field names ==> return clean WhatsAppStatus
 
     const status = await hermesClient.get<HermesStatus>(
       HERMES_ENDPOINTS.STATUS,
@@ -61,121 +59,108 @@ export class WhatsAppService {
     // }
   }
 
-  // startConnection() ==> create HermesClient ==> POST onboarding request ==> Hermes creates a temporary WhatsApp pairing session ==> return Hermes' raw response
+  //   WhatsAppService → ManagerClient → Manager :9200 → Hermes
   public async startConnection(): Promise<WhatsAppConnectResponse> {
-    const hermesClient = createHermesClient();
+    const managerClient = createManagerClient();
 
-    return hermesClient.post<WhatsAppConnectResponse>(
-      HERMES_ENDPOINTS.WHATSAPP.START_ONBOARDING,
-      {
-        mode: "self-chat",
-        allowed_users: "",
-      },
+    return managerClient.post<WhatsAppConnectResponse>(
+      MANAGER_ENDPOINTS.WHATSAPP.CONNECT,
     );
   }
-  // Important distiction to be explained here:
-  // The Hermes startConnection() service above might return a response like this:
-  //   status = connected
-  //   account_name = Ibrahim
-  //   account_phone = ...
-  // Which indicates that Hermes has successfully connected to WhatsApp so Hermes is authorized to send and receive messages through this communication channel.
-  // While the getStatus() service above might return a response like this:
-  //   state = disconnected
-  //   needsAttention = true
-  //   errorCode = null
-  // Which indicates that Hermes is not currently connected to WhatsApp.
-  // We have two separate ideas:
-  // A) "Do we have a valid WhatsApp account/session?"
-  // B) "Is the Hermes Gateway currently using that account live?"
-  // The connect endpoint answered A.
-  // It basically said:
-  // “Yes, I found/used a valid WhatsApp session for Ibrahim.”
-  // While the status endpoint answered B.
-  // It basically said:
-  // “No, the Hermes Gateway is not currently using that account live.”
-  // simple anology to Wi-Fi: You might have a valid Wi-Fi password (A), but you might not be connected to the Wi-Fi network right now (B).
 
-  // connect is reporting onboarding/pairing state
-  // status is reporting runtime gateway state
+  // Important distinction between Connect, Apply, and Status:
+  //
+  // 1. Connect:
+  //    WhatsAppService.startConnection() calls our FastAPI Manager.
+  //    Manager starts a new pairing session or safely reconnects
+  //    an existing WhatsApp account.
+  //
+  //    Connect returns a pairingId that identifies the pairing attempt.
+  //    The frontend then polls until the pairing status is "connected".
+  //
+  // 2. Apply:
+  //    A pairing status of "connected" means WhatsApp pairing
+  //    succeeded, but it does not necessarily mean the Hermes
+  //    Gateway is already using WhatsApp.
+  //
+  //    After successful pairing, applyConnection(pairingId) tells
+  //    Manager to activate the WhatsApp connection.
+  //
+  //    Manager is responsible for:
+  //    - Applying the pairing through Hermes.
+  //    - Ensuring the Hermes Gateway is running.
+  //    - Verifying WhatsApp is connected to the Gateway.
+  //    - Configuring the self-chat home channel automatically.
+  //
+  // 3. Status:
+  //    getStatus() reads Hermes runtime status to determine
+  //    whether WhatsApp is currently connected and operational.
+  //
+  // Example:
+  //    Poll returns status = "connected"
+  //    but getStatus() may still return connected = false.
+  //
+  //    This means pairing succeeded, but the Gateway is not
+  //    yet using the WhatsApp connection.
+  //
+  // Complete flow:
+  // Connect → Poll → QR Scan → Pairing Connected
+  // → Apply → Gateway Ready → WhatsApp Connected
+  //
+  // Communication:
+  // Next.js API Route
+  // → WhatsApp Controller
+  // → WhatsAppService.applyConnection()
+  // → ManagerClient
+  // → Manager POST /whatsapp/apply/{pairingId}
+  // → Hermes internally
 
-  // And we have the Hermes apply endpoint
-  //   start/connect
-  // → pairing/session becomes valid
-  // → apply that pairing to Hermes configuration
-  // → gateway uses it
-  // → status becomes connected
-
-  // This is below is the service that will be used to Apply WhatsApp pairing to Hermes configuration and make Hermes use it live.
-  // This is the step that takes the successful onboarding/pairing session and tells Hermes: “Use this pairing as the active WhatsApp configuration.”
-  // This will be the Hermes endpoint: POST /api/messaging/whatsapp/onboarding/{pairingId}/apply
-  // That pairingId is the value we got from the /connect response.
-
-  //   connect/onboarding
-  // ==> establish or recover a WhatsApp pairing session
-  // ==> get pairing_id
-  // ==> apply pairing
-  // ==> Hermes writes/activates that WhatsApp configuration
-  // ==> Hermes may restart the Gateway
-  // ==> Gateway starts using WhatsApp as an active channel
-
-  // connect = prepare/pair WhatsApp
-
-  // apply = activate that pairing in Hermes
-
-  // gateway restart = how Hermes makes the running Gateway use the new WhatsApp configuration
-
-  // applyConnection(pairingId) ==> HermesClient ==> POST onboarding/{pairingId}/apply ==> Hermes activates that WhatsApp pairing
   public async applyConnection(
     pairingId: string,
   ): Promise<WhatsAppApplyResponse> {
-    const hermesClient = createHermesClient();
+    const managerClient = createManagerClient();
 
-    return hermesClient.post<WhatsAppApplyResponse>(
-      HERMES_ENDPOINTS.WHATSAPP.APPLY_ONBOARDING(pairingId),
-      {
-        mode: "self-chat",
-        allowed_users: "",
-      },
+    return managerClient.post<WhatsAppApplyResponse>(
+      MANAGER_ENDPOINTS.WHATSAPP.APPLY(pairingId),
     );
   }
 
-  // This is the poll sevice below that will be used one temporary WhatsApp pairing session attempt
-  // Since the connection process can take time when the user presses Connect WhatsApp, Hermes starts a temporary pairing session and gives us a pairingId
-  // At that moment, the connection may still be waitinh for the user to scan a QR code or complete some other actions in WhatsApp. So we need to poll Hermes to check if the pairing session has completed or not.
-
-  // User clicks "Connect WhatsApp"
-  // ==> /connect returns pairingId + QR
-  // ==> UI shows QR
-
-  // While user has not scanned it yet:
-  // ==> /poll/{pairingId}
-  // ==> maybe says "waiting" / "pending"
-
-  // User scans QR:
-  // ==> /poll/{pairingId}
-  // ==> eventually says "connected"
-
-  // Then:
-  // ==> /apply/{pairingId}
-  // ==> activates the pairing in Hermes
-
-  // Finally:
-  // ==> /status
-  // ==> confirms the running Gateway is actually using WhatsApp
+  // Polls an existing WhatsApp pairing session through our FastAPI Manager.
+  //
+  // Flow:
+  // Next.js API route
+  // → WhatsApp Controller
+  // → WhatsAppService.pollConnection()
+  // → ManagerClient
+  // → Manager GET /whatsapp/poll/{pairingId}
+  // → Hermes internally
+  //
+  // The pairingId identifies the specific connection attempt.
+  //
+  // Possible statuses:
+  // - installing/starting: WhatsApp pairing is being prepared.
+  // - waiting: QR code is available for scanning.
+  // - connected: QR was successfully scanned.
+  // - expired/error: Pairing failed or expired.
+  //
+  // Important:
+  // QR codes may change between polling requests.
+  // The frontend must update the displayed QR when qr_payload changes.
 
   public async pollConnection(
     pairingId: string,
   ): Promise<WhatsAppPollResponse> {
-    // pairingId identifies the exact temporary WhatsApp pairing session we want to inspect.
-    const hermesClient = createHermesClient();
+    const managerClient = createManagerClient();
 
-    return hermesClient.get<WhatsAppPollResponse>(
-      HERMES_ENDPOINTS.WHATSAPP.POLL_ONBOARDING(pairingId),
+    return managerClient.get<WhatsAppPollResponse>(
+      MANAGER_ENDPOINTS.WHATSAPP.POLL(pairingId),
     );
   }
 
   // This service will be used if the user wants to cancel a temporary WhatsApp pairing session. This is the case if the user started a pairing session but then changed their mind and wants to cancel it. The pairingId identifies the exact temporary WhatsApp pairing session we want to cancel.
-  public async cancelConnection(pairingId: string): Promise<WhatsAppCancelResponse> {
+  public async cancelConnection(
+    pairingId: string,
+  ): Promise<WhatsAppCancelResponse> {
     const hermesClient = createHermesClient();
 
     return hermesClient.delete<WhatsAppCancelResponse>(

@@ -4,6 +4,8 @@
 // For now, the control panel backend needs to know things like:
 // - Where the Hermes server is running
 // - Which secret token should be used when calling protected Hermes APIs
+// - Or
+// - Where the Hermes Manager is running
 //
 // These values may change depending on the environment.
 //
@@ -18,10 +20,16 @@
 // Sensitive values such as HERMES_DASHBOARD_SESSION_TOKEN
 // should NOT be hardcoded in source code.
 
+// Why define ServerEnv? It tells TypeScript which configuration values must exist and what types they should have.
+// Important: ServerEnv doesn't actually load the values. The loadServerEnv() function does that.
+// This keeps our configuration organized, type-safe, and easy to maintain.
 type ServerEnv = {
   hermes: {
     baseUrl: string;
     sessionToken: string;
+  };
+  manager: {
+    baseUrl: string;
   };
 };
 
@@ -81,6 +89,8 @@ const getOptionalEnv = (name: string, fallback: string): string => {
 //
 // env.hermes.baseUrl
 // env.hermes.sessionToken
+// or
+// env.manager.baseUrl
 //
 // instead of directly using:
 //
@@ -146,6 +156,45 @@ export const loadServerEnv = (): ServerEnv => {
       //
       // Secrets should always be explicitly configured.
       sessionToken: getRequiredEnv("HERMES_DASHBOARD_SESSION_TOKEN"),
+    },
+    manager: {
+      // The base URL for the Hermes Manager.
+      //
+      // During local development, the manager may be available at:
+      //
+      // http://127.0.0.1:9120
+      //
+      // Later, inside Docker Compose, the manager container will communicate with the Hermes container through
+      // the Docker service name:
+      //
+      // http://manager:9120
+      //
+      // Docker will therefore provide something like:
+      //
+      // MANAGER_BASE_URL=http://manager:9120
+      //
+      // The .replace(/\/+$/, "") removes trailing slashes.
+      //
+      // Example:
+      //
+      // http://manager:9120/
+      //
+      // becomes:
+      //
+      // http://manager:9120
+      //
+      // This makes it safe to later create URLs like:
+      //
+      // `${baseUrl}/api/status`
+      //
+      // without accidentally producing:
+      //
+      // http://manager:9120//api/status
+      //
+      baseUrl: getOptionalEnv(
+        "MANAGER_BASE_URL",
+        "http://127.0.0.1:9120",
+      ).replace(/\/+$/, ""),
     },
   };
 };

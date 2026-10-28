@@ -42,18 +42,10 @@ export const HERMES_ENDPOINTS = {
   },
 
   WHATSAPP: {
-    START_ONBOARDING: "/api/messaging/whatsapp/onboarding/start",
-
-    APPLY_ONBOARDING: (pairingId: string) =>
-      `/api/messaging/whatsapp/onboarding/${pairingId}/apply`,
-
-    POLL_ONBOARDING: (pairingId: string) =>
-      `/api/messaging/whatsapp/onboarding/${pairingId}`,
-
     CANCEL_ONBOARDING: (pairingId: string) =>
       `/api/messaging/whatsapp/onboarding/${pairingId}`,
   },
 } as const;
 
 // Instead of hardcoding it: fetch(`${baseUrl}/api/status`)
-// Then: fetch(`${baseUrl}${HERMES_ENDPOINTS.STATUS}`)
+// Then: fetch(`${baseUrl}${HERMES_ENDPOINTS.STATUS}`) 
