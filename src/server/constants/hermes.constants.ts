@@ -45,7 +45,36 @@ export const HERMES_ENDPOINTS = {
     CANCEL_ONBOARDING: (pairingId: string) =>
       `/api/messaging/whatsapp/onboarding/${pairingId}`,
   },
+
+  // Hermes Cron API endpoints
+  // CRON groups scheduler-related endpoints.
+  CRON: {
+    // Retrieves scheduled jobs stored by Hermes.
+    // Creates a new scheduled job in Hermes.
+    JOBS: "/api/cron/jobs",
+
+    // Pauses a scheduled job without deleting it.
+    PAUSE: (jobId: string) =>
+      `/api/cron/jobs/${encodeURIComponent(jobId)}/pause`,
+
+    // Resumes a previously paused job.
+    RESUME: (jobId: string) =>
+      `/api/cron/jobs/${encodeURIComponent(jobId)}/resume`,
+
+    // Manually triggers an existing scheduled job.
+    TRIGGER: (jobId: string) =>
+      `/api/cron/jobs/${encodeURIComponent(jobId)}/trigger`,
+
+    // This used to retrieve AI agent session history for a specific job.
+    RUNS: (jobId: string) => `/api/cron/jobs/${encodeURIComponent(jobId)}/runs`,
+
+    // This is used to delete a scheduled job from Hermes.
+    DELETE: (jobId: string) => `/api/cron/jobs/${encodeURIComponent(jobId)}`,
+
+    // This is used to update the shceduled job's detials in Hermes.
+    UPDATE: (jobId: string) => `/api/cron/jobs/${encodeURIComponent(jobId)}`,
+  },
 } as const;
 
 // Instead of hardcoding it: fetch(`${baseUrl}/api/status`)
-// Then: fetch(`${baseUrl}${HERMES_ENDPOINTS.STATUS}`) 
+// Then: fetch(`${baseUrl}${HERMES_ENDPOINTS.STATUS}`)

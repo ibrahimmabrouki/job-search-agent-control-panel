@@ -366,6 +366,72 @@ export class HermesClient {
       return undefined;
     }
   }
+
+  /**
+   * Uploads the candidate's CV PDF to Hermes.
+   *
+   * Endpoint: POST /api/files/upload-stream
+   *
+   * Unlike request(), this method sends multipart/form-data
+   * instead of JSON.
+   *
+   * Important:
+   * - Does not modify the existing request() method.
+   * - Reuses Hermes authentication and error handling.
+   * - FormData contains the PDF, destination path, and overwrite flag.
+   * - Content-Type is NOT set manually; fetch generates it.
+   *
+   * Returns Hermes' upload response.
+   */
+  public async uploadCv<T>(formData: FormData): Promise<T> {
+    const url = this.buildUrl("/api/files/upload-stream");
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, this.timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+
+        headers: {
+          Accept: "application/json",
+          [HERMES_HEADERS.SESSION_TOKEN]: this.sessionToken,
+        },
+
+        body: formData,
+        signal: controller.signal,
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        return await this.parseResponse<T>(response);
+      }
+
+      throw await this.createResponseError(response);
+    } catch (error) {
+      if (error instanceof HermesError) {
+        throw error;
+      }
+
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new HermesError(
+          `Hermes upload timed out after ${this.timeoutMs}ms`,
+          504,
+          "HERMES_TIMEOUT",
+        );
+      }
+
+      throw new HermesError(
+        "Unable to upload CV to Hermes",
+        502,
+        "HERMES_UNAVAILABLE",
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------
