@@ -2,7 +2,7 @@
 
 import { BriefcaseBusiness, CalendarDays, LoaderCircle, MessageCircle, Pause, Pencil, Play, Plus } from "lucide-react";
 import { useDashboard } from "./dashboard-context";
-import { displayDate } from "@/lib/control-panel/api";
+import { displayDate } from "@/lib/control-panel/format";
 import { SectionHeader, StatusPill } from "./primitives";
 
 export function SchedulerPanel() {
