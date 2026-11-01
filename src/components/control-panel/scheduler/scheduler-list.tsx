@@ -1,14 +1,21 @@
 "use client";
 
 import { BriefcaseBusiness, CalendarDays, LoaderCircle, MessageCircle, Pause, Pencil, Play, Plus } from "lucide-react";
-import { useDashboard } from "./dashboard-context";
-import { displayDate } from "@/lib/control-panel/format";
-import { SectionHeader, StatusPill } from "./primitives";
+import type { CronJob } from "@/types/control-panel/control-panel.types";
+import { displayDate } from "@/lib/admin-services/format";
+import { SectionHeader, StatusPill } from "../primitives";
 
-export function SchedulerPanel() {
-  const {
-    jobs, busy, loading, selectedJobId, setSelectedJobId, runJobOperation, openExistingJob, openNewJob,
-  } = useDashboard();
+export function SchedulerPanel({ jobs, busy, loading, selectedJobId, setSelectedJobId,
+  runJobOperation, openExistingJob, openNewJob }: {
+  jobs: CronJob[];
+  busy: boolean;
+  loading: boolean;
+  selectedJobId: string;
+  setSelectedJobId: (id: string) => void;
+  runJobOperation: (id: string, action: "pause" | "resume" | "trigger") => Promise<void>;
+  openExistingJob: (job: CronJob) => void;
+  openNewJob: () => void;
+}) {
   return <section id="scheduler" className="neon-panel neon-scheduler">
     <SectionHeader icon={CalendarDays} title="Scheduler / Jobs" description="Scheduled jobs, automations, and recurring tasks.">
       <span className="neon-count">{jobs.length} {jobs.length === 1 ? "job" : "jobs"}</span>
@@ -28,10 +35,10 @@ export function SchedulerPanel() {
             <td className="neon-datetime">{displayDate(job.last_run_at)}</td>
             <td className="neon-datetime">{job.enabled ? displayDate(job.next_run_at) : "—"}</td>
             <td><div className="neon-job-actions">
-              <button type="button" className="neon-run-btn" title="Run job now" disabled={busy !== null}
-                onClick={() => void runJobOperation(job.id, "trigger")}>{busy === `job-trigger-${job.id}`
+              <button type="button" className="neon-run-btn" title="Run job now" disabled={busy}
+                onClick={() => void runJobOperation(job.id, "trigger")}>{busy
                 ? <LoaderCircle size={13} className="neon-spin"/> : <Play size={12} fill="currentColor"/>}<span>Run Now</span></button>
-              <button type="button" className="neon-square-btn" disabled={busy !== null} title={job.enabled ? "Pause job" : "Resume job"}
+              <button type="button" className="neon-square-btn" disabled={busy} title={job.enabled ? "Pause job" : "Resume job"}
                 aria-label={job.enabled ? `Pause ${job.name}` : `Resume ${job.name}`}
                 onClick={() => void runJobOperation(job.id, job.enabled ? "pause" : "resume")}>
                 {job.enabled ? <Pause size={15}/> : <Play size={15}/>}</button>

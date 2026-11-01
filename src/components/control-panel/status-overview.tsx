@@ -1,11 +1,18 @@
 "use client";
 
 import { Activity, CalendarDays, MessageCircle, Sparkles, Zap } from "lucide-react";
-import { useDashboard } from "./dashboard-context";
+import type { HermesStatus, CodexStatus, WhatsAppStatus, CronJob } from "@/types/control-panel/control-panel.types";
 import { HealthCard } from "./primitives";
 
-export function StatusOverview() {
-  const { hermes, whatsapp, codex, jobs, activeJobs, gatewayHealthy, loading } = useDashboard();
+export function StatusOverview({ hermes, whatsapp, codex, jobs, loading }: {
+  hermes: HermesStatus | null;
+  whatsapp: WhatsAppStatus | null;
+  codex: CodexStatus | null;
+  jobs: CronJob[];
+  loading: boolean;
+}) {
+  const activeJobs = jobs.filter(job => job.enabled).length;
+  const gatewayHealthy = hermes?.gateway_running === true && hermes.overall === "ok";
   return <div className="neon-status-grid" aria-label="System health overview">
     <HealthCard icon={Zap} label="Hermes / Gateway" active={gatewayHealthy}
       detail={!hermes ? "Unavailable" : gatewayHealthy ? "Connected · Healthy" : hermes.gateway_state}/>

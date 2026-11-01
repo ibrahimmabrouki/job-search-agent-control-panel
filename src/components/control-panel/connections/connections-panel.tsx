@@ -1,14 +1,26 @@
 "use client";
 
 import { Activity, Link2, LoaderCircle, MessageCircle, RefreshCw, Sparkles, Unplug, Zap } from "lucide-react";
-import { useDashboard } from "./dashboard-context";
-import { SectionHeader, StatusPill } from "./primitives";
+import type { HermesStatus, CodexStatus, WhatsAppStatus } from "@/types/control-panel/control-panel.types";
+import { SectionHeader, StatusPill } from "../primitives";
 
-export function ConnectionsPanel() {
-  const {
-    hermes, codex, whatsapp, gatewayHealthy, busy, refreshing, navigate, refresh,
-    beginCodexLogin, disconnectCodex, beginWhatsAppPairing,
-  } = useDashboard();
+type ConnectionsPanelProps = {
+  hermes: HermesStatus | null;
+  codex: CodexStatus | null;
+  whatsapp: WhatsAppStatus | null;
+  busy: boolean;
+  refreshing: boolean;
+  navigate: (id: string) => void;
+  refresh: () => Promise<void>;
+  beginCodexLogin: () => Promise<void>;
+  disconnectCodex: () => Promise<void>;
+  beginWhatsAppPairing: () => Promise<void>;
+};
+
+export function ConnectionsPanel(props: ConnectionsPanelProps) {
+  const { hermes, codex, whatsapp, busy, refreshing, navigate, refresh,
+    beginCodexLogin, disconnectCodex, beginWhatsAppPairing } = props;
+  const gatewayHealthy = hermes?.gateway_running === true && hermes.overall === "ok";
   const codexConnected = codex?.connected === true;
   const whatsAppConnected = whatsapp?.connected === true;
   return <section id="connections" className="neon-panel neon-connections">
@@ -31,11 +43,11 @@ export function ConnectionsPanel() {
         <div className="neon-integration-meta"><div><span>Provider</span><strong>{codex?.provider || "—"}</strong></div>
           <div><span>Source</span><strong>{codex?.source || "—"}</strong></div></div>
         <div className="neon-integration-actions">
-          {codexConnected ? <button type="button" className="neon-btn subtle" disabled={busy !== null}
+          {codexConnected ? <button type="button" className="neon-btn subtle" disabled={busy}
             onClick={() => { if (window.confirm("Disconnect Codex from Hermes? Scheduled AI jobs may stop working.")) void disconnectCodex(); }}><Unplug size={14}/> Disconnect</button>
           : <button type="button" className="neon-btn subtle" onClick={() => void refresh()}><RefreshCw size={14}/> Status</button>}
-          <button type="button" className="neon-btn vivid" disabled={busy !== null} onClick={() => void beginCodexLogin()}>
-            {busy === "codex-login" ? <LoaderCircle size={14} className="neon-spin"/> : <Link2 size={14}/>}
+          <button type="button" className="neon-btn vivid" disabled={busy} onClick={() => void beginCodexLogin()}>
+            {busy ? <LoaderCircle size={14} className="neon-spin"/> : <Link2 size={14}/>}
             {codexConnected ? "Reconnect" : "Connect"}</button>
         </div>
       </article>
@@ -45,8 +57,8 @@ export function ConnectionsPanel() {
         <div className="neon-integration-meta"><div><span>Connection</span><strong>{whatsapp?.state || "Unknown"}</strong></div><div><span>Mode</span><strong>Self-chat</strong></div></div>
         <div className="neon-integration-actions">
           <button type="button" className="neon-btn subtle" onClick={() => void refresh()}><RefreshCw size={14}/> Status</button>
-          <button type="button" className="neon-btn vivid" disabled={busy !== null} onClick={() => void beginWhatsAppPairing()}>
-            {busy === "whatsapp-connect" ? <LoaderCircle size={14} className="neon-spin"/> : <Link2 size={14}/>}
+          <button type="button" className="neon-btn vivid" disabled={busy} onClick={() => void beginWhatsAppPairing()}>
+            {busy ? <LoaderCircle size={14} className="neon-spin"/> : <Link2 size={14}/>}
             {whatsAppConnected ? "Reconnect" : "Connect"}</button>
         </div>
       </article>

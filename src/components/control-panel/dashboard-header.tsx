@@ -1,11 +1,17 @@
 "use client";
 
 import { CircleAlert, HardDrive, RefreshCw, X } from "lucide-react";
-import { useDashboard } from "./dashboard-context";
+import type { Notice } from "@/types/control-panel/control-panel.types";
 import { StatusDot } from "./primitives";
 
-export function DashboardHeader() {
-  const { gatewayHealthy, refreshing, refresh, notice, setNotice, unavailable } = useDashboard();
+export function DashboardHeader({ gatewayHealthy, refreshing, refresh, notice, setNotice, unavailable }: {
+  gatewayHealthy: boolean;
+  refreshing: boolean;
+  refresh: () => Promise<void>;
+  notice: Notice | null;
+  setNotice: (value: Notice | null) => void;
+  unavailable: string[];
+}) {
   return <>
     <header className="neon-topbar">
       <div className="neon-page-title"><h1>Job Search Agent <em>Control Panel</em></h1>
