@@ -1,12 +1,17 @@
 "use client";
 
 import { Activity, CalendarDays, Clock3, RefreshCw } from "lucide-react";
-import { useDashboard } from "./dashboard-context";
-import { displayDate } from "@/lib/control-panel/format";
+import type { CronJob } from "@/types/control-panel/control-panel.types";
+import { displayDate } from "@/lib/admin-services/format";
 import { SectionHeader, StatusDot } from "./primitives";
 
-export function ActivityPanel() {
-  const { activity, refreshing, refresh } = useDashboard();
+export function ActivityPanel({ jobs, refreshing, refresh }: {
+  jobs: CronJob[];
+  refreshing: boolean;
+  refresh: () => Promise<void>;
+}) {
+  const activity = jobs.filter(job => job.last_run_at).slice().sort((a, b) =>
+    new Date(b.last_run_at ?? 0).getTime() - new Date(a.last_run_at ?? 0).getTime()).slice(0, 4);
   return <section id="activity" className="neon-panel neon-activity">
     <SectionHeader icon={Activity} title="Recent Activity / Logs" description="Latest verified scheduler activity.">
       <button type="button" className="neon-btn subtle" onClick={() => void refresh()}><RefreshCw size={14} className={refreshing ? "neon-spin" : ""}/> Refresh</button>

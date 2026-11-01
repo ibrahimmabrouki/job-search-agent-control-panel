@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, CalendarDays, Folder, HardDrive, LayoutDashboard, Link2, Settings2, Zap } from "lucide-react";
-import { useDashboard } from "./dashboard-context";
+import type { HermesStatus } from "@/types/control-panel/control-panel.types";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -12,8 +12,11 @@ const NAV_ITEMS = [
   { id: "settings", label: "Quick Actions", icon: Settings2 },
 ];
 
-export function Sidebar() {
-  const { hermes, activeSection, navigate } = useDashboard();
+export function Sidebar({ hermes, activeSection, navigate }: {
+  hermes: HermesStatus | null;
+  activeSection: string;
+  navigate: (id: string) => void;
+}) {
   return <aside className="neon-sidebar" aria-label="Main navigation">
     <div className="neon-sidebar-brand">
       <span className="neon-logo" aria-hidden="true"><span/><span/></span>
