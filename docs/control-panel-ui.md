@@ -20,9 +20,43 @@ The frontend follows the supplied dark/neon-green reference. It is a Next.js 15 
 - `src/components/control-panel/quick-actions.tsx` — frequently used controls
 - `src/components/control-panel/dialogs.tsx` — separate editing, authentication and pairing dialog components
 - `src/components/control-panel/primitives.tsx` — reusable status cards, pills, and section headers
-- `src/hooks/use-control-panel.ts` — dashboard state and command handlers
-- `src/lib/control-panel/api.ts` — same-origin HTTP client, errors, CV multipart upload
+- `src/hooks/use-control-panel.ts` — small composition hook; no direct HTTP requests or feature business logic
+- `src/hooks/control-panel/use-dashboard-status.ts` — polling and live read-only dashboard state
+- `src/hooks/control-panel/use-dashboard-operations.ts` — shared busy lock, error notices, safe mutation wrapper
+- `src/hooks/control-panel/use-codex-connection.ts` — Codex login session UI behavior
+- `src/hooks/control-panel/use-whatsapp-connection.ts` — WhatsApp pairing UI behavior
+- `src/hooks/control-panel/use-scheduler-management.ts` — job editor state and actions
+- `src/hooks/control-panel/use-workspace-management.ts` — workspace file editor state and CV uploads
+- `src/lib/control-panel/api-client.ts` — shared same-origin HTTP transport, errors, JSON/FormData handling
+- `src/lib/control-panel/services/hermes-service.ts` — Hermes status API
+- `src/lib/control-panel/services/codex-service.ts` — Codex status/login/poll/disconnect API
+- `src/lib/control-panel/services/whatsapp-service.ts` — WhatsApp status/connect/poll/apply API
+- `src/lib/control-panel/services/scheduler-service.ts` — scheduler create/update/run/pause/resume API
+- `src/lib/control-panel/services/workspace-service.ts` — AGENTS/PROFILE read/write and CV upload API
+- `src/lib/control-panel/format.ts` — UI-only date formatting
 - `src/lib/control-panel/types.ts` — client-facing projections and form types
+
+## API connection pattern (based on Coffee Shop Menu)
+
+Coffee Shop Menu separates feature-specific frontend services under `lib/admin-services/` (for example, `category-service.ts` and `menu-item-service.ts`) from UI components. Its server uses API routes, controllers, services and repositories. We follow the same separation **where the data source is different**: Hermes and the WhatsApp Manager are external services, so the Job Search Agent backend uses typed Hermes/Manager clients instead of MongoDB repositories.
+
+```text
+Dashboard button / dialog (presentational component)
+       ↓
+Feature hook (React state + UI action orchestration)
+       ↓
+Feature frontend service (typed endpoint + request shape)
+       ↓
+Shared API client (fetch, same-origin, network + HTTP errors)
+       ↓
+Next.js /api/v1/... route
+       ↓
+Existing backend controller → backend service → HermesClient / ManagerClient
+       ↓
+Dockerized Hermes / FastAPI Manager
+```
+
+Do not import `server/` code or Docker addresses into browser components. React components and hooks do not call `fetch`; only the shared API client does. Each new feature should add a **feature service** and **feature hook**, rather than extending one giant dashboard file.
 
 ## Existing API routes reused
 
@@ -48,6 +82,7 @@ Run `npx tsc --noEmit` and `npm run build` in a clone with dependencies installe
 
 - No mocked success or sample job outcomes on the live dashboard.
 - API clients talk only to `/api/v1` and do not access Hermes credentials in the browser.
+- Error parsing and transport details live in `api-client.ts`; endpoint names and request bodies live in feature services.
 - One in-flight mutation at a time, with operation feedback and disabled controls.
 - New scheduled jobs start **paused** until explicitly enabled.
 - Responsive layout and reduced-motion preference are supported.

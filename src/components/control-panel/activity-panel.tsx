@@ -2,7 +2,7 @@
 
 import { Activity, CalendarDays, Clock3, RefreshCw } from "lucide-react";
 import { useDashboard } from "./dashboard-context";
-import { displayDate } from "@/lib/control-panel/api";
+import { displayDate } from "@/lib/control-panel/format";
 import { SectionHeader, StatusDot } from "./primitives";
 
 export function ActivityPanel() {
