@@ -63,6 +63,12 @@ type HermesRequestOptions = {
   // At this low-level HTTP layer we should not assume what shape
   // every Hermes request body will have.
   body?: unknown;
+
+  // This is optional field that could be provided by main caller which will call the factory function
+  // since we need to somehow control the timeouts for each service
+  // for example: if the service is calling Hermes for a short-term operation such as getting the status, we can use the default timeout or even shorter
+  // but in case of the cron job trigger it need more time..
+  timeoutMs?: number;
 };
 
 // Note:
@@ -113,10 +119,15 @@ export class HermesClient {
     0;
   }
 
-  public async post<T>(path: string, body?: unknown): Promise<T> {
+  public async post<T>(
+    path: string,
+    body?: unknown,
+    options?: { timeoutMs?: number },
+  ): Promise<T> {
     return this.request<T>(path, {
       method: "POST",
       body,
+      timeoutMs: options?.timeoutMs,
     });
   }
 
@@ -162,10 +173,11 @@ export class HermesClient {
     // This creates an object that can cancel the HTTP request.
     const controller = new AbortController();
 
+    const requestTimeoutMs = options.timeoutMs ?? this.timeoutMs;
     // This starts a timer that will abort the request if it takes too long.
     const timeout = setTimeout(() => {
       controller.abort();
-    }, this.timeoutMs);
+    }, requestTimeoutMs);
 
     //The actual request is wrapped in try/catch/finally.
     try {

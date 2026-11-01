@@ -4,7 +4,7 @@
 // These files live inside Docker's persistent volume.
 export const WORKSPACE_FILES = {
   AGENTS: "/opt/data/workspace/AGENTS.md",
-  PROFILE: "/opt/data/workspace/PROFILE.md",
-  CV: "/opt/data/workspace/CV.pdf",
+  PROFILE: "/opt/data/workspace/context/PROFILE.md",
+  CV: "/opt/data/workspace/context/IbrahimMabrouki-UAE.pdf",
   JOB_HISTORY: "/opt/data/workspace/data/job_history.json",
 } as const;

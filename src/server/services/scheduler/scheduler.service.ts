@@ -57,7 +57,11 @@ export class SchedulerService {
   public async triggerJob(jobId: string): Promise<unknown> {
     const hermesClient = createHermesClient();
 
-    return hermesClient.post<unknown>(HERMES_ENDPOINTS.CRON.TRIGGER(jobId));
+    return hermesClient.post<unknown>(
+      HERMES_ENDPOINTS.CRON.TRIGGER(jobId),
+      undefined,
+      { timeoutMs: 180_000 },
+    );
   }
 
   // Retrieves AI agent sessions created by a scheduled Cron job.
