@@ -33,6 +33,23 @@ type ConnectionsManagerProps = {
   notify: (text: string, kind: "ok" | "error") => void;
 };
 
+// Checks whether an existing WhatsApp pairing session can be reused.
+function isPairingReusable(pairing: WhatsAppPairing | null): boolean {
+  if (!pairing) return false;
+
+  // Reject failed, expired, or cancelled pairing sessions.
+  if (["expired", "error", "cancelled"].includes(pairing.status)) {
+    return false;
+  }
+
+  // Allow an already paired session to proceed to Apply Connection.
+  if (pairing.status === "connected") {
+    return true;
+  }
+
+  // For unfinished pairing, validate the session expiration time.
+  return Date.parse(pairing.expires_at) > Date.now();
+}
 // refresh, navigate, and notify are functions defined in the parent and passed as callbacks.
 
 export default function ConnectionsManager({
@@ -272,7 +289,11 @@ export default function ConnectionsManager({
   // This method is responsible for starting the WhatsApp pairing process. It calls the startWhatsAppPairing function from the WhatsApp service and updates the pairing state with the returned pairing information.
   async function handleStartWhatsApp() {
     setBusy(true);
-    setConnectingService("whatsapp");
+    // Resume an existing valid pairing session.
+    if (isPairingReusable(pairing)) {
+      setWhatsappDialogOpen(true);
+      return;
+    }
     try {
       const result = await startWhatsAppPairing();
 
@@ -376,6 +397,50 @@ export default function ConnectionsManager({
     return () => clearTimeout(timer);
   }, [whatsappDialogOpen, pairing, busy, handleCheckWhatsApp]);
 
+  // Automatically mark an unfinished WhatsApp pairing as expired.
+  useEffect(() => {
+    if (!pairing) return;
+
+    // A completed pairing should remain available for Apply Connection.
+    if (
+      ["connected", "expired", "error", "cancelled"].includes(pairing.status)
+    ) {
+      return;
+    }
+
+    // Convert the session expiration timestamp into milliseconds.
+    const expiresAt = Date.parse(pairing.expires_at);
+
+    if (Number.isNaN(expiresAt)) return;
+
+    const remainingTime = Math.max(0, expiresAt - Date.now());
+
+    const timer = setTimeout(() => {
+      setPairing((current) => {
+        // Do not expire a different session or a completed pairing.
+        if (
+          !current ||
+          current.pairing_id !== pairing.pairing_id ||
+          ["connected", "expired", "error", "cancelled"].includes(
+            current.status,
+          )
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          status: "expired",
+          qr_payload: null,
+          error: "WhatsApp pairing expired. Close this dialog and start again.",
+        };
+      });
+    }, remainingTime);
+
+    // Cancel the previous timer when pairing changes.
+    return () => clearTimeout(timer);
+  }, [pairing]);
+
   async function handleApplyWhatsApp() {
     if (!pairing || pairing.status !== "connected") return;
     setBusy(true);
@@ -410,7 +475,10 @@ export default function ConnectionsManager({
         beginCodexLogin={handleStartCodex}
         disconnectCodex={handleDisconnectCodex}
         beginWhatsAppPairing={handleStartWhatsApp}
+        // This prop is used to determine whether to show the Resume text in the button or not
         hasPendingCodexLogin={codexLogin !== null}
+        // This prop is used to determine whether to show the Resume text in the button or not
+        hasPendingWhatsAppPairing={isPairingReusable(pairing)}
       />
       {codexDialogOpen && codexLogin && (
         <CodexLoginDialog

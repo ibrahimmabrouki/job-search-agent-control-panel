@@ -30,6 +30,7 @@ type ConnectionsPanelProps = {
   disconnectCodex: () => Promise<void>;
   beginWhatsAppPairing: () => Promise<void>;
   hasPendingCodexLogin: boolean;
+  hasPendingWhatsAppPairing: boolean;
 };
 
 export function ConnectionsPanel(props: ConnectionsPanelProps) {
@@ -44,6 +45,7 @@ export function ConnectionsPanel(props: ConnectionsPanelProps) {
     beginCodexLogin,
     disconnectCodex,
     hasPendingCodexLogin,
+    hasPendingWhatsAppPairing,
     beginWhatsAppPairing,
     connectingService,
   } = props;
@@ -214,7 +216,11 @@ export function ConnectionsPanel(props: ConnectionsPanelProps) {
               ) : (
                 <Link2 size={14} />
               )}
-              {whatsAppConnected ? "Reconnect" : "Connect"}
+              {hasPendingWhatsAppPairing
+                ? "Resume"
+                : whatsAppConnected
+                  ? "Reconnect"
+                  : "Connect"}
             </button>
           </div>
         </article>

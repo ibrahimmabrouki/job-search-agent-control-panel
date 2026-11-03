@@ -70,6 +70,7 @@ export type WhatsAppPairing = {
   pairing_id: string;
   status: string;
   qr_payload: string | null;
+  expires_at: string;
   error: string | null;
 };
 export type Notice = { text: string; kind: "ok" | "error" };
