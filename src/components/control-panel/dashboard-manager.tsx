@@ -500,6 +500,21 @@ export default function DashboardManager() {
             navigate={navigate}
             notify={notify}
           />
+          {/* Workspace: This component is responsible for managing the workspace, including enabling users to edit their profile, the agents.md file, and upload their CV.
+           * - It receives information from this component DashboardManager and it also forwards some of the information to its child components.
+           * - The props passed are:
+           * - editProfileOpen: This is used to tell WorkspaceManger when to open the edit profile dialog.
+           * - we are passing the state from DashboardManager to WorkspaceManger so that it can use it to open the edit profile dialog when the user clicks on the edit profile button in QuickActions component.
+           *
+           * - closeEditProfile: This is used to Allow the WorkspaceManger to close the edit profile dialog.
+           *
+           * - uploadingCvOpen: This is used to tell WorkspaceManger when to open the upload CV dialog.
+           * - we are passing the state from DashboardManager to WorkspaceManger so that it can use it to open the upload CV dialog when the user clicks on the upload CV button in QuickActions component.
+           *
+           * - closeUploadCv: This is used to Allow the WorkspaceManger to close the upload CV dialog.
+           *
+           * - notify: This is used to Allow the WorkspaceManger to display a notification message to the user in the DashboardHeader component.
+           */}
           <WorkspaceManager
             editProfileOpen={editingProfile}
             closeEditProfile={() => setEditingProfile(false)}
@@ -507,6 +522,27 @@ export default function DashboardManager() {
             closeUploadCv={() => setUploadingCv(false)}
             notify={notify}
           />
+          {/* SchedulerManager manages the scheduled jobs that Hermes uses to execute automated tasks, such as searching for jobs at a specified frequency.
+           * 1- Its main responsibilities include displaying the list of scheduled jobs along side their details
+           * - It receives information from this component DashboardManager using the jobs state which is passed as props, and it also forwards some of the information to its child components.
+           *
+           * 2- It allows users to create new jobs, edit existing jobs, and delete jobs.
+           * 3- It allow users to trigger a job manually, which is useful for testing or immediate execution.
+           * 5- It allow user to select a job from the list of jobs, and the selected job is highlighted in the UI and can be triggered using the QuickActions component.
+           * 6- It allow users to Pause and Resume jobs, which is useful for temporarily stopping a job without deleting it.
+           * 8- It allow user to delete a job, which removes it from the list of scheduled jobs and prevents it from running in the future.
+           *
+           * - The props passed to SchedulerManager are:
+           * - jobs: The list of scheduled jobs.
+           * - loading: A boolean indicating whether the data is loading -- this is used to show a loading indicator while the data is being fetched when the component is initialized or when we click refresh.
+           * - selectedJobId: The id of the currently selected job.
+           * - onSelectJob: A function to update the selected job id when a user selects a job from the list.
+           * - refresh: A function to trigger a refresh of the dashboard, which is used to update the list of jobs after creating, editing, or deleting a job.
+           * - notify: A function to display a notification message to the user in the DashboardHeader component.
+           * - createJobOpen: A boolean indicating whether the create job dialog is open.
+           * - openCreateJob: A function to open the create job dialog.
+           * - closeCreateJob: A function to close the create job dialog.
+           */}
           <SchedulerManager
             jobs={jobs}
             loading={loading}

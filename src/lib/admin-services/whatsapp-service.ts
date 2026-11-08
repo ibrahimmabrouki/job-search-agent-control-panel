@@ -50,3 +50,19 @@ export async function applyWhatsAppPairing(pairingId: string): Promise<void> {
     );
   }
 }
+
+export async function cancelWhatsAppPairing(pairingId: string): Promise<void> {
+  const response = await fetch(
+    `/api/v1/whatsapp/cancel/${encodeURIComponent(pairingId)}`,
+    {
+      method: "DELETE",
+      credentials: "same-origin",
+    },
+  );
+
+  if (!response.ok) {
+    const data = await response.json();
+
+    throw new Error(data.error?.message || "Unable to cancel WhatsApp pairing");
+  }
+}

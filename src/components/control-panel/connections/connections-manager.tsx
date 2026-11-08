@@ -18,6 +18,7 @@ import {
   startWhatsAppPairing,
   pollWhatsAppPairing,
   applyWhatsAppPairing,
+  cancelWhatsAppPairing,
 } from "@/lib/admin-services/whatsapp-service";
 import { ConnectionsPanel } from "./connections-panel";
 import CodexLoginDialog from "./codex-login-dialog";
@@ -92,6 +93,20 @@ export default function ConnectionsManager({
 
   // Controls whether the WhatsApp pairing dialog is visible.
   const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
+
+  // When we are polling we automatically asking the backend about the status of the Whatsapp connection. And polling is only done when the dialog is open.
+  // One expected problem is that polling might fails because the backend is temporarily down or unreachable. So we need to provide a way for the user to know that something failed ==> we display a warning instead of the QR code.
+  // Since the session is preseved upon navigating the Dashboard we can use our Existing automatic polling mechanism to check the status of the pairing session.
+
+  // This state below is used to store the temporary error meassage and does not mean that the pairing session has failed. It is just a temporary error that we can display to the user and it will be cleared when the next polling request succeeds.
+  // For example: "Unable to check pairing status. Retrying automatically..."
+  // And when the next polling request succeeds we can clear the error message: setWhatsappPollingError(null);
+
+  // One question is Why not reuse pairing.error? Because they represent different problems
+  // pairing.error represents a permanent error that indicates the pairing session has failed or expired. It is set by the backend and is part of the pairing session data. It is not cleared automatically and it requires the user to start a new pairing session.
+  const [whatsappPollingError, setWhatsappPollingError] = useState<
+    string | null
+  >(null);
 
   async function handleStartCodex() {
     // If a login session already exists, reopen its dialog.
@@ -288,14 +303,24 @@ export default function ConnectionsManager({
 
   // This method is responsible for starting the WhatsApp pairing process. It calls the startWhatsAppPairing function from the WhatsApp service and updates the pairing state with the returned pairing information.
   async function handleStartWhatsApp() {
-    setBusy(true);
+    // Do not start another operation while busy.
+    if (busy) return;
     // Resume an existing valid pairing session.
     if (isPairingReusable(pairing)) {
       setWhatsappDialogOpen(true);
       return;
     }
+
+    // Only mark busy when actually starting a new API request.
+    setBusy(true);
+    setConnectingService("whatsapp");
     try {
       const result = await startWhatsAppPairing();
+      console.log("[WhatsApp] Pairing ID:", result.pairing_id);
+
+      // A new pairing session started successfully.
+      // Clear any temporary error from the previous session.
+      setWhatsappPollingError(null);
 
       setPairing(result);
       setWhatsappDialogOpen(true);
@@ -326,7 +351,31 @@ export default function ConnectionsManager({
     try {
       console.log("[WhatsApp] Sending polling request...");
 
-      const result = await pollWhatsAppPairing(pairing.pairing_id);
+      // One important thing shoule be handled is that we need prevent the race condition that can happen
+      // This polling function is called automatically every 5 seconds and it for the purpose of tracking the status of the pairing session.
+
+      // If the user clicks connect or reconnect then a new pairing session is created with a new pairing_id and the dialog is directly opened so this will lead to tiggering the useEffect for polling
+      // - Note: polling result might take sometime
+      // - Then if the user clicks cancel while the polling request is still in progress, the pairing session will be cancelled
+      // - The if the user clicks again connect or reconnect again assume the new session is B and canceled one is A, then the polling response for A that was in progress will arrive and it will update the pairing state with the old session A and this migh lead to displaying the QR code for the old session A which is no longer valid and the user will be confused.
+
+      // To prevent this we need to check if the pairing_id of the session that we are polling is the same as the pairing_id of the pairing state which is the latest or the current session
+      // - If they are different then we should ignore the response and not update the pairing state with the old session A.
+      // - And as we agreed that clicking connect or reconnect opens the dialog directly and automatic polling will start so we wait for the result of the new polling or the session B wich will have the same pairing_id as the pairing state and it will update the pairing state with the correct session B.
+
+      // getting the currrent pairing_id before the polling request
+      const requestedPairingId = pairing.pairing_id;
+
+      const result = await pollWhatsAppPairing(requestedPairingId);
+
+      // Only update the state if this is still the active session.
+      setPairing((current) =>
+        current?.pairing_id === requestedPairingId ? result : current,
+      );
+      
+      // The API request succeeded, so clear any previous polling error.
+      setWhatsappPollingError(null);
+
       // Do not log qr_payload because it contains sensitive pairing data.
       console.log("[WhatsApp] Polling response:", {
         status: result.status,
@@ -339,10 +388,14 @@ export default function ConnectionsManager({
         notify("Pairing confirmed. Apply the connection.", "ok");
       }
     } catch (error) {
-      notify(
-        error instanceof Error ? error.message : "WhatsApp status failed",
-        "error",
+      // Keep the pairing session unchanged when polling fails.
+      // Only update the temporary polling error.
+      setWhatsappPollingError(
+        "Unable to check pairing status. Retrying automatically...",
       );
+
+      // Log the underlying error for debugging.
+      console.error("[WhatsApp] Polling failed:", error);
     } finally {
       console.log("[WhatsApp] Polling request finished");
 
@@ -461,6 +514,40 @@ export default function ConnectionsManager({
     }
   }
 
+  async function handleCancelWhatsApp() {
+    // Prevent cancellation if another connection operation is running.
+    if (!pairing || busy) return;
+
+    setBusy(true);
+
+    try {
+      // Request Hermes to cancel the current pairing session.
+      await cancelWhatsAppPairing(pairing.pairing_id);
+
+      // Only clear the session after the backend confirms success.
+      setPairing(null);
+
+      // Remove any previous temporary polling warning.
+      setWhatsappPollingError(null);
+
+      // Close the WhatsApp pairing dialog.
+      setWhatsappDialogOpen(false);
+
+      notify("WhatsApp pairing cancelled.", "ok");
+    } catch (error) {
+      // Preserve the session if cancellation fails.
+      notify(
+        error instanceof Error
+          ? error.message
+          : "Unable to cancel WhatsApp pairing",
+        "error",
+      );
+    } finally {
+      // Re-enable connection controls after the request finishes.
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <ConnectionsPanel
@@ -496,9 +583,12 @@ export default function ConnectionsManager({
         <WhatsAppPairingDialog
           pairing={pairing}
           busy={busy}
+          pollingError={whatsappPollingError}
           onClose={() => setWhatsappDialogOpen(false)}
           onPoll={() => void handleCheckWhatsApp()}
           onApply={() => void handleApplyWhatsApp()}
+          onRetry={() => void handleStartWhatsApp()}
+          onCancel={handleCancelWhatsApp}
         />
       )}
     </>

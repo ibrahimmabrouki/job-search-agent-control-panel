@@ -32,17 +32,18 @@ export class WhatsAppService {
       HERMES_ENDPOINTS.STATUS,
     );
 
-    const whatsapp = status.gateway_platforms.whatsapp;
+    // WhatsApp may be absent when it is not configured or disconnected.
+    // WhatsApp may be absent when it is not configured or disconnected.
+    const whatsapp = status.gateway_platforms?.whatsapp;
 
     return {
-      connected: whatsapp.state === "connected",
-      state: whatsapp.state,
-      needsAttention: whatsapp.needs_attention,
-      errorCode: whatsapp.error_code,
-      errorMessage: whatsapp.error_message,
-      updatedAt: whatsapp.updated_at,
+      connected: whatsapp?.state === "connected",
+      state: whatsapp?.state ?? "disconnected",
+      needsAttention: whatsapp?.needs_attention ?? true,
+      errorCode: whatsapp?.error_code ?? null,
+      errorMessage: whatsapp?.error_message ?? null,
+      updatedAt: whatsapp?.updated_at ?? null,
     };
-
     // For example, Hermes gives:
     // {
     //   "state": "disconnected",
